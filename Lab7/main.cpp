@@ -34,8 +34,8 @@ using namespace std;
 // TODO: PART 2 STEP 6
 #include "Trivial_VS.csh"
 #include "Trivial_PS.csh"
-#define BACKBUFFER_WIDTH	500
-#define BACKBUFFER_HEIGHT	500
+#define BACKBUFFER_WIDTH	1024
+#define BACKBUFFER_HEIGHT	768
 
 //************************************************************
 //************ SIMPLE WINDOWS APP CLASS **********************
@@ -52,6 +52,28 @@ class DEMO_APP
 	ID3D11DeviceContext * Context;
 	ID3D11RenderTargetView *bBuffer;
 	D3D11_VIEWPORT ViewPort;
+
+
+
+
+	
+
+
+
+
+
+
+
+
+	ID3D11Buffer * indexBuffer;
+	D3D11_BUFFER_DESC ibDesc;
+
+	ID3D11Buffer * TO_SCENE_buffer;
+	D3D11_BUFFER_DESC tsbDesc;
+
+	ID3D11Buffer * TO_OBJECT_buffer;
+	D3D11_BUFFER_DESC tobDesc;
+
 
 
 	// TODO: PART 2 STEP 2
@@ -81,6 +103,23 @@ class DEMO_APP
 	// TODO: PART 3 STEP 4a
 	SEND_TO_VRAM toShader;
 	ID3D11DepthStencilView * DSV;
+
+	struct TO_OBJECT
+	{
+		Mat world = Ident();
+	};
+
+	struct TO_SCENE
+	{
+		Mat View = Ident();
+		Mat Proj = Ident();
+	};
+
+	TO_OBJECT world;
+
+	TO_SCENE scene;
+
+	Mat cameraTransform = Ident();
 public:
 	// BEGIN PART 2
 	// TODO: PART 2 STEP 1
@@ -93,6 +132,10 @@ public:
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
 	bool ShutDown();
+
+	ID3D11RasterizerState * RState;
+	D3D11_RASTERIZER_DESC rDesc;
+
 };
 
 //************************************************************
@@ -129,9 +172,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 
-
-
-
 	// TODO: PART 1 STEP 3a
 	DXGI_SWAP_CHAIN_DESC desc;
 	ZeroMemory(&desc, sizeof(DXGI_SWAP_CHAIN_DESC));
@@ -160,42 +200,176 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ViewPort.TopLeftX = 0;
 	ViewPort.TopLeftY = 0;
 	// TODO: PART 2 STEP 3a
-	Simple_Vert circle[3];
 	
-	circle[0].x = -.5;
-	circle[0].y = 0;
-	circle[0].z = 0;
-	circle[0].w = 0;
-
-	circle[1].x = .5;
-	circle[1].y = 0;
-	circle[1].z = 0;
-	circle[1].w = 0;
-
-	circle[2].x = 0;
-	circle[2].y = -.5;
-	circle[2].z = 0;
-	circle[2].w = 0;
-
+	Simple_Vert circle[8];
 	
+	circle[0].x = -.25;
+	circle[1].x = -.25;
+	circle[2].x = .25;
+	circle[3].x = .25;
+	circle[4].x = -.25;
+	circle[5].x = -.25;
+	circle[6].x = .25;
+	circle[7].x = .25;
+	
+	circle[0].y = .25;
+	circle[1].y = -.25;
+	circle[2].y = .25;
+	circle[3].y = -.25;
+	circle[4].y = .25;
+	circle[5].y = -.25;
+	circle[6].y = .25;
+	circle[7].y = -.25;
 
+	circle[0].z = .25;
+	circle[1].z = .25;
+	circle[2].z = .25;
+	circle[3].z = .25;
+	circle[4].z = -.25;
+	circle[5].z = -.25;
+	circle[6].z = -.25;
+	circle[7].z = -.25;
+
+	circle[0].w =1 ;
+	circle[1].w =1 ;
+	circle[2].w =1 ;
+	circle[3].w =1 ;
+	circle[4].w =1 ;
+	circle[5].w =1 ;
+	circle[6].w =1 ;
+	circle[7].w =1 ;
 	// BEGIN PART 4
 	// TODO: PART 4 STEP 1
 
 	// TODO: PART 2 STEP 3b
+
+	unsigned short index_array[36];
+
+	index_array[0] = 0;
+	index_array[1] = 1;
+	index_array[2] = 2;
+
+
+	index_array[3] = 3;
+	index_array[4] = 1;
+	index_array[5] = 2;
+
+	index_array[6] = 2;
+	index_array[7] = 3;
+	index_array[8] = 6;
+
+	index_array[9] = 6;
+	index_array[10] = 7;
+	index_array[11] = 3;
+
+	index_array[12] = 4;
+	index_array[13] = 5;
+	index_array[14] = 6;
+
+	index_array[15] = 6;
+	index_array[16] = 7;
+	index_array[17] = 5;
+
+	index_array[18] = 4;
+	index_array[19] = 5;
+	index_array[20] = 1;
+
+	index_array[21] = 0;
+	index_array[22] = 1;
+	index_array[23] = 4;
+
+	index_array[24] = 1;
+	index_array[25] = 5;
+	index_array[26] = 7;
+
+	index_array[27] = 7;
+	index_array[28] = 3;
+	index_array[29] = 1;
+
+	index_array[30] = 0;
+	index_array[31] = 6;
+	index_array[32] = 2;
+
+	index_array[33] = 6;
+	index_array[34] = 4;
+	index_array[35] = 0;
+	
+	cameraTransform = RotateX(cameraTransform, Degree_to_rad(-10));
+	cameraTransform.mat[3][2] = -10;
+	scene.View = InverseDirty(cameraTransform);
+
+	float zNear = .1;
+	float zFar = 10.0;
+
+	
+
+	
+	
+	
+
+	scene.Proj.mat[1][1] = 1 / tan(60);
+	scene.Proj.mat[0][0] = scene.Proj.mat[1][1] * (BACKBUFFER_WIDTH / BACKBUFFER_HEIGHT);
+	scene.Proj.mat[2][2] = (zFar - zNear) / zFar;
+	scene.Proj.mat[2][3] = 1;
+	scene.Proj.mat[3][3] = 0;
+	scene.Proj.mat[3][2] = (zFar * zNear) / (zFar - zNear);
+
+	ZeroMemory(&rDesc, sizeof(D3D11_RASTERIZER_DESC));
+	rDesc.FillMode = D3D11_FILL_SOLID;
+	rDesc.CullMode = D3D11_CULL_NONE;
+	rDesc.DepthClipEnable = true;
+	rDesc.MultisampleEnable = true;
+	rDesc.AntialiasedLineEnable = true;
+
+	Device->CreateRasterizerState(&rDesc, &RState);
 	
 	ZeroMemory(&bDesc, sizeof(D3D11_BUFFER_DESC));
-	bDesc.ByteWidth = sizeof(Simple_Vert) * 3;
+	bDesc.ByteWidth = sizeof(Simple_Vert) * 8;
 	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bDesc.CPUAccessFlags = NULL;
+
+	ZeroMemory(&tsbDesc, sizeof(D3D11_BUFFER_DESC));
+	tsbDesc.ByteWidth = sizeof(TO_SCENE);
+	tsbDesc.Usage = D3D11_USAGE_DYNAMIC;
+	tsbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	tsbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	ZeroMemory(&tobDesc, sizeof(D3D11_BUFFER_DESC));
+	tobDesc.ByteWidth = sizeof(TO_OBJECT);
+	tobDesc.Usage = D3D11_USAGE_DYNAMIC;
+	tobDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	tobDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	ZeroMemory(&ibDesc, sizeof(D3D11_BUFFER_DESC));
+	ibDesc.ByteWidth = sizeof(unsigned int) * 36;
+	ibDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	ibDesc.CPUAccessFlags = NULL;
 
     // TODO: PART 2 STEP 3c
 	D3D11_SUBRESOURCE_DATA data3;
 	ZeroMemory(&data3, sizeof(D3D11_SUBRESOURCE_DATA));
 	data3.pSysMem = circle;
+
+	D3D11_SUBRESOURCE_DATA data_index;
+	ZeroMemory(&data_index, sizeof(D3D11_SUBRESOURCE_DATA));
+	data_index.pSysMem = index_array;
+	
+
+	D3D11_SUBRESOURCE_DATA worldmat;
+	ZeroMemory(&worldmat, sizeof(D3D11_SUBRESOURCE_DATA));
+	//worldmat.pSysMem = world;
+	D3D11_SUBRESOURCE_DATA scenemat;
+	ZeroMemory(&scenemat, sizeof(D3D11_SUBRESOURCE_DATA));
+	//scenemat.pSysMem = scene;
 	// TODO: PART 2 STEP 3d
+	
 	Device->CreateBuffer(&bDesc, &data3, &verts);
+	Device->CreateBuffer(&ibDesc, &data_index, &indexBuffer);
+	Device->CreateBuffer(&tsbDesc,NULL, &TO_SCENE_buffer);
+	Device->CreateBuffer(&tobDesc,NULL, &TO_OBJECT_buffer);
+	
 	// TODO: PART 5 STEP 2a
 	
 	// TODO: PART 5 STEP 2b
@@ -320,6 +494,59 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 bool DEMO_APP::Run()
 {
+	if (GetAsyncKeyState(VK_UP))
+	{
+		scene.View = RotateX(scene.View, Deg2Rad(-.00001));
+	}
+	if (GetAsyncKeyState(VK_DOWN))
+	{
+		scene.View = RotateX(scene.View, Deg2Rad(.00001));
+	}
+	if (GetAsyncKeyState(VK_LEFT))
+	{
+		scene.View = RotateY(scene.View, Deg2Rad(-.00001));
+	}
+	if (GetAsyncKeyState(VK_RIGHT))
+	{
+		scene.View = RotateY(scene.View, Deg2Rad(.00001));
+	}
+	if (GetAsyncKeyState('Q'))
+	{
+		scene.View = RotateZ(scene.View, Deg2Rad(-.00001));
+	}
+	if (GetAsyncKeyState('E'))
+	{
+		scene.View = RotateZ(scene.View, Deg2Rad(.00001));
+	}
+	if (GetAsyncKeyState('D'))
+	{
+		scene.View.mat[3][0] += .0001;
+	}
+	if (GetAsyncKeyState('A'))
+	{
+		scene.View.mat[3][0] -= .0001;
+	}
+	if (GetAsyncKeyState('W'))
+	{
+		scene.View.mat[3][2] += .0001;
+	}
+	if (GetAsyncKeyState('S'))
+	{
+		scene.View.mat[3][2] -= .0001;
+	}
+	if (GetAsyncKeyState(VK_SPACE))
+	{
+		scene.View.mat[3][1] += .0001;
+	}
+	if (GetAsyncKeyState(VK_LCONTROL))
+	{
+		scene.View.mat[3][1] -= .0001;
+	}
+
+
+
+
+
 	// TODO: PART 4 STEP 2	
 	
 	// TODO: PART 4 STEP 3
@@ -332,11 +559,12 @@ bool DEMO_APP::Run()
 	Context->OMSetRenderTargets(1, &bBuffer, NULL);
 	// TODO: PART 1 STEP 7b
 	Context->RSSetViewports(1, &ViewPort);
+	Context->RSSetState(RState);
 	// TODO: PART 1 STEP 7c
 	float color[4];
 	color[0] = 0;
 	color[1] = 0;
-	color[2] = 1;
+	color[2] = 0;
 	color[3] = 1;
 	Context->ClearRenderTargetView(bBuffer, color);
 	Context->ClearDepthStencilView(DSV, NULL, 1, NULL);
@@ -351,18 +579,32 @@ bool DEMO_APP::Run()
 	// END PART 5
 	
 	// TODO: PART 3 STEP 5
+	/*
 	D3D11_MAPPED_SUBRESOURCE data;
 	ZeroMemory(&data, sizeof(D3D11_MAPPED_SUBRESOURCE));
 	Context->Map(buff2, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
 	memcpy(data.pData, &toShader, sizeof(toShader));
 	Context->Unmap(buff2, NULL);
-	
+	*/
+
+	D3D11_MAPPED_SUBRESOURCE data;
+	ZeroMemory(&data, sizeof(D3D11_MAPPED_SUBRESOURCE));
+	Context->Map(TO_OBJECT_buffer,NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
+	memcpy(data.pData, &world, sizeof(world));
+	Context->Unmap(TO_OBJECT_buffer, NULL);
+
+	Context->Map(TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
+	memcpy(data.pData, &scene, sizeof(scene));
+	Context->Unmap(TO_SCENE_buffer, NULL);
+
 	// TODO: PART 3 STEP 6
-	Context->VSSetConstantBuffers(0, 1, &buff2);
+	Context->VSSetConstantBuffers(1, 1, &TO_OBJECT_buffer);
+	Context->VSSetConstantBuffers(2, 1, &TO_SCENE_buffer);
 	// TODO: PART 2 STEP 9a
 	unsigned int size = sizeof(Simple_Vert);
 	unsigned int offset = 0;
 	Context->IASetVertexBuffers(0, 1, &verts,&size , &offset);
+	Context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, 0);
 	// TODO: PART 2 STEP 9b
 	Context->VSSetShader(VS, NULL, NULL);
 	Context->PSSetShader(PS, NULL, NULL);
@@ -371,7 +613,8 @@ bool DEMO_APP::Run()
 	// TODO: PART 2 STEP 9d
 	Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	// TODO: PART 2 STEP 10
-	Context->Draw(3, 0);
+	//Context->Draw(3, 0);
+	Context->DrawIndexed(36, 0, 0);
 	// END PART 2
 
 	// TODO: PART 1 STEP 8

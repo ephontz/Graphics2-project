@@ -226,7 +226,7 @@ Mat InverseDirty(Mat m)
 	temp2.x = m.mat[3][0];
 	temp2.y = m.mat[3][1];
 	temp2.z = m.mat[3][2];
-	temp2.w = m.mat[3][3];
+	temp2.w = 0;
 
 	Vec temp3 = VecTimesMat(temp2, temp);
 
