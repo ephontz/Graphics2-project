@@ -127,6 +127,8 @@ public:
 	struct Simple_Vert
 	{
 		float x, y, z, w;
+		float NormX, NormY, NormZ;
+		float u, v;
 	};
 	
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
@@ -294,8 +296,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	index_array[34] = 4;
 	index_array[35] = 0;
 	
-	cameraTransform = RotateX(cameraTransform, Degree_to_rad(-10));
+	
 	cameraTransform.mat[3][2] = -10;
+	cameraTransform = RotateX(cameraTransform, Degree_to_rad(-10));
 	scene.View = InverseDirty(cameraTransform);
 
 	float zNear = .1;
@@ -389,7 +392,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	
 	D3D11_INPUT_ELEMENT_DESC layout[] =
 	{
-		{"Position", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
+		{"Position", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"Normal", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 	
 	
@@ -433,7 +438,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	DepthDesc.Usage = D3D11_USAGE_DEFAULT;
 	DepthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	Device->CreateTexture2D(&DepthDesc, NULL, &DepthStencil);
-	
 	D3D11_DEPTH_STENCIL_DESC stencil;
 
 	ZeroMemory(&stencil, sizeof(D3D11_DEPTH_STENCIL_DESC));
@@ -470,7 +474,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	Device->CreateDepthStencilView(DepthStencil, &DSVdesc, &DSV);
 //	Context->OMSetRenderTargets(1, Surface, DSV);
-
+	DepthStencil->Release();
 
 
 
@@ -518,29 +522,29 @@ bool DEMO_APP::Run()
 	{
 		scene.View = RotateZ(scene.View, Deg2Rad(.00001));
 	}
-	if (GetAsyncKeyState('D'))
-	{
-		scene.View.mat[3][0] += .0001;
-	}
 	if (GetAsyncKeyState('A'))
 	{
-		scene.View.mat[3][0] -= .0001;
+		scene.View.mat[3][0] += .0005;
+	}
+	if (GetAsyncKeyState('D'))
+	{
+		scene.View.mat[3][0] -= .0005;
 	}
 	if (GetAsyncKeyState('W'))
 	{
-		scene.View.mat[3][2] += .0001;
+		scene.View.mat[3][2] -= .0005;
 	}
 	if (GetAsyncKeyState('S'))
 	{
-		scene.View.mat[3][2] -= .0001;
+		scene.View.mat[3][2] += .0005;
 	}
 	if (GetAsyncKeyState(VK_SPACE))
 	{
-		scene.View.mat[3][1] += .0001;
+		scene.View.mat[3][1] -= .0005;
 	}
 	if (GetAsyncKeyState(VK_LCONTROL))
 	{
-		scene.View.mat[3][1] -= .0001;
+		scene.View.mat[3][1] += .0005;
 	}
 
 
@@ -634,6 +638,16 @@ bool DEMO_APP::ShutDown()
 	bBuffer->Release();
 	Context->Release();
 	Device->Release();
+	indexBuffer->Release();
+	TO_SCENE_buffer->Release();
+	TO_OBJECT_buffer->Release();
+	iLay->Release();
+	VS->Release();
+	PS->Release();
+	buff2->Release();
+	DSV->Release();
+	RState->Release();
+	verts->Release();
 	
 	UnregisterClass( L"DirectXApplication", application ); 
 	return true;
