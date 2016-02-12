@@ -18,6 +18,7 @@
 #include "XTime.h"
 #include <d3d11.h>
 #include <DirectXMath.h>
+#include "DDSTextureLoader.h"
 
 
 using namespace DirectX;
@@ -58,8 +59,8 @@ class DEMO_APP
 
 	
 
-
-
+	ID3D11ShaderResourceView * skybox;
+	
 
 
 
@@ -138,6 +139,14 @@ public:
 	ID3D11RasterizerState * RState;
 	D3D11_RASTERIZER_DESC rDesc;
 
+	Simple_Vert circle[24];
+
+	unsigned short index_array[36];
+
+	ID3D11DepthStencilState * DSS;
+	D3D11_DEPTH_STENCIL_DESC dssDesc;
+
+
 };
 
 //************************************************************
@@ -202,111 +211,129 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ViewPort.TopLeftX = 0;
 	ViewPort.TopLeftY = 0;
 	// TODO: PART 2 STEP 3a
-	
-	Simple_Vert circle[8];
-	
-	circle[0].x = -.25;
-	circle[1].x = -.25;
-	circle[2].x = .25;
-	circle[3].x = .25;
-	circle[4].x = -.25;
-	circle[5].x = -.25;
-	circle[6].x = .25;
-	circle[7].x = .25;
-	
-	circle[0].y = .25;
-	circle[1].y = -.25;
-	circle[2].y = .25;
-	circle[3].y = -.25;
-	circle[4].y = .25;
-	circle[5].y = -.25;
-	circle[6].y = .25;
-	circle[7].y = -.25;
 
-	circle[0].z = .25;
-	circle[1].z = .25;
-	circle[2].z = .25;
-	circle[3].z = .25;
-	circle[4].z = -.25;
-	circle[5].z = -.25;
-	circle[6].z = -.25;
-	circle[7].z = -.25;
+	//cameraTransform.mat[3][2] = -10;
+	//cameraTransform = RotateX(cameraTransform, Degree_to_rad(-10));
+	scene.View = InverseDirty(cameraTransform);
 
-	circle[0].w =1 ;
-	circle[1].w =1 ;
-	circle[2].w =1 ;
-	circle[3].w =1 ;
-	circle[4].w =1 ;
-	circle[5].w =1 ;
-	circle[6].w =1 ;
-	circle[7].w =1 ;
-	// BEGIN PART 4
-	// TODO: PART 4 STEP 1
 
-	// TODO: PART 2 STEP 3b
+	circle[0].x = circle[14].x = circle[17].x = scene.View.mat[3][0] - .5;
+	circle[0].y = circle[14].y = circle[17].y = scene.View.mat[3][1] + .5;
+	circle[0].z = circle[14].z = circle[17].z = scene.View.mat[3][2] - .5;
+												
+	circle[1].x = circle[15].x = circle[21].x = scene.View.mat[3][0] - .5;
+	circle[1].y = circle[15].y = circle[21].y = scene.View.mat[3][1] - .5;
+	circle[1].z = circle[15].z = circle[21].z = scene.View.mat[3][2] - .5;
+												
+	circle[2].x = circle[4].x = circle[19].x = scene.View.mat[3][0] + .5;
+	circle[2].y = circle[4].y = circle[19].y = scene.View.mat[3][1] + .5;
+	circle[2].z = circle[4].z = circle[19].z = scene.View.mat[3][2] - .5;
+												
+	circle[3].x = circle[5].x = circle[23].x = scene.View.mat[3][0] + .5;
+	circle[3].y = circle[5].y = circle[23].y = scene.View.mat[3][1] - .5;
+	circle[3].z = circle[5].z = circle[23].z = scene.View.mat[3][2] - .5;
+												
+	circle[8].x = circle[12].x = circle[16].x = scene.View.mat[3][0] - .5;
+	circle[8].y = circle[12].y = circle[16].y = scene.View.mat[3][1] + .5;
+	circle[8].z = circle[12].z = circle[16].z = scene.View.mat[3][2] + .5;
+												
+	circle[9].x = circle[13].x = circle[20].x = scene.View.mat[3][0] - .5;
+	circle[9].y = circle[13].y = circle[20].y = scene.View.mat[3][1] - .5;
+	circle[9].z = circle[13].z = circle[20].z = scene.View.mat[3][2] + .5;
+												
+	circle[6].x = circle[10].x = circle[18].x = scene.View.mat[3][0] + .5;
+	circle[6].y = circle[10].y = circle[18].y = scene.View.mat[3][1] + .5;
+	circle[6].z = circle[10].z = circle[18].z = scene.View.mat[3][2] + .5;
+												
+	circle[11].x = circle[22].x = circle[7].x = scene.View.mat[3][0] + .5;
+	circle[11].y = circle[22].y = circle[7].y = scene.View.mat[3][1] - .5;
+	circle[11].z = circle[22].z = circle[7].z = scene.View.mat[3][2] + .5;
 
-	unsigned short index_array[36];
+	for (size_t i = 0; i < 8; i++)
+	{
+		circle[i * 4].u = 0;
+		circle[i * 4].v = 0;
+
+		circle[i * 4+1].u = 0;
+		circle[i * 4+1].v = 1;
+
+		circle[i * 4+2].u = 1;
+		circle[i * 4+2].v = 0;
+
+		circle[i * 4+3].u = 1;
+		circle[i * 4+3].v = 1;
+	}
+
+
+
+
 
 	index_array[0] = 0;
 	index_array[1] = 1;
 	index_array[2] = 2;
 
-
-	index_array[3] = 3;
-	index_array[4] = 1;
+	index_array[3] = 1;
+	index_array[4] = 3;
 	index_array[5] = 2;
 
-	index_array[6] = 2;
-	index_array[7] = 3;
+	index_array[6] = 4;
+	index_array[7] = 5;
 	index_array[8] = 6;
 
-	index_array[9] = 6;
+	index_array[9] = 5;
 	index_array[10] = 7;
-	index_array[11] = 3;
+	index_array[11] = 6;
 
-	index_array[12] = 4;
-	index_array[13] = 5;
-	index_array[14] = 6;
+	index_array[12] = 8;
+	index_array[13] = 9;
+	index_array[14] = 10;
 
-	index_array[15] = 6;
-	index_array[16] = 7;
-	index_array[17] = 5;
+	index_array[15] = 9;
+	index_array[16] = 11;
+	index_array[17] = 10;
 
-	index_array[18] = 4;
-	index_array[19] = 5;
-	index_array[20] = 1;
+	index_array[18] = 14;
+	index_array[19] = 15;
+	index_array[20] = 12;
 
-	index_array[21] = 0;
-	index_array[22] = 1;
-	index_array[23] = 4;
+	index_array[21] = 15;
+	index_array[22] = 13;
+	index_array[23] = 12;
 
-	index_array[24] = 1;
-	index_array[25] = 5;
-	index_array[26] = 7;
+	index_array[24] = 20;
+	index_array[25] = 21;
+	index_array[26] = 22;
 
-	index_array[27] = 7;
-	index_array[28] = 3;
-	index_array[29] = 1;
+	index_array[27] = 21;
+	index_array[28] = 23;
+	index_array[29] = 22;
 
-	index_array[30] = 0;
-	index_array[31] = 6;
-	index_array[32] = 2;
+	index_array[30] = 16;
+	index_array[31] = 17;
+	index_array[32] = 18;
 
-	index_array[33] = 6;
-	index_array[34] = 4;
-	index_array[35] = 0;
+	index_array[33] = 17;
+	index_array[34] = 19;
+	index_array[35] = 18;
 	
+	// BEGIN PART 4
+	// TODO: PART 4 STEP 1
+
+	// TODO: PART 2 STEP 3b
+
 	
-	cameraTransform.mat[3][2] = -10;
-	cameraTransform = RotateX(cameraTransform, Degree_to_rad(-10));
-	scene.View = InverseDirty(cameraTransform);
+
 
 	float zNear = .1;
 	float zFar = 10.0;
 
 	
 
-	
+
+	ZeroMemory(&dssDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
+	dssDesc.DepthEnable = true;
+	dssDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	dssDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
 	
 	
 
@@ -318,16 +345,17 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	scene.Proj.mat[3][2] = (zFar * zNear) / (zFar - zNear);
 
 	ZeroMemory(&rDesc, sizeof(D3D11_RASTERIZER_DESC));
-	rDesc.FillMode = D3D11_FILL_SOLID;
+	rDesc.FillMode = D3D11_FILL_WIREFRAME;
 	rDesc.CullMode = D3D11_CULL_NONE;
-	rDesc.DepthClipEnable = true;
+	rDesc.FrontCounterClockwise = false;
+	rDesc.DepthClipEnable = false;
 	rDesc.MultisampleEnable = true;
 	rDesc.AntialiasedLineEnable = true;
 
 	Device->CreateRasterizerState(&rDesc, &RState);
 	
 	ZeroMemory(&bDesc, sizeof(D3D11_BUFFER_DESC));
-	bDesc.ByteWidth = sizeof(Simple_Vert) * 8;
+	bDesc.ByteWidth = sizeof(Simple_Vert) * 24;
 	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bDesc.CPUAccessFlags = NULL;
@@ -418,7 +446,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	toShader.constantOffset[1] = 0.0f;
 
 
-
+	CreateDDSTextureFromFile(Device, L"skybox.dds",NULL, &skybox);
 
 	ID3D11Texture2D* DepthStencil = NULL;
 	D3D11_TEXTURE2D_DESC DepthDesc;
@@ -498,6 +526,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 bool DEMO_APP::Run()
 {
+
+
+
+
 	if (GetAsyncKeyState(VK_UP))
 	{
 		scene.View = RotateX(scene.View, Deg2Rad(-.00001));
@@ -593,6 +625,7 @@ bool DEMO_APP::Run()
 
 	D3D11_MAPPED_SUBRESOURCE data;
 	ZeroMemory(&data, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
 	Context->Map(TO_OBJECT_buffer,NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
 	memcpy(data.pData, &world, sizeof(world));
 	Context->Unmap(TO_OBJECT_buffer, NULL);
@@ -600,6 +633,8 @@ bool DEMO_APP::Run()
 	Context->Map(TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
 	memcpy(data.pData, &scene, sizeof(scene));
 	Context->Unmap(TO_SCENE_buffer, NULL);
+
+
 
 	// TODO: PART 3 STEP 6
 	Context->VSSetConstantBuffers(1, 1, &TO_OBJECT_buffer);
@@ -612,6 +647,8 @@ bool DEMO_APP::Run()
 	// TODO: PART 2 STEP 9b
 	Context->VSSetShader(VS, NULL, NULL);
 	Context->PSSetShader(PS, NULL, NULL);
+	Context->OMSetDepthStencilState(DSS, 1);
+	Context->PSSetShaderResources(0, 1, &skybox);
 	// TODO: PART 2 STEP 9c
 	Context->IASetInputLayout(iLay);
 	// TODO: PART 2 STEP 9d
@@ -620,7 +657,7 @@ bool DEMO_APP::Run()
 	//Context->Draw(3, 0);
 	Context->DrawIndexed(36, 0, 0);
 	// END PART 2
-
+	Context->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH, 1.0, NULL);
 	// TODO: PART 1 STEP 8
 	SwapChain->Present(NULL, NULL);
 	// END OF PART 1
@@ -648,6 +685,8 @@ bool DEMO_APP::ShutDown()
 	DSV->Release();
 	RState->Release();
 	verts->Release();
+	DSS->Release();
+	skybox->Release();
 	
 	UnregisterClass( L"DirectXApplication", application ); 
 	return true;
