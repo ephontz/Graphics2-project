@@ -233,12 +233,12 @@ Mat InverseDirty(Mat m)
 	temp3.x *= -1;
 	temp3.y *= -1;
 	temp3.z *= -1;
-	temp3.w *= -1;
+	//temp3.w *= -1;
 
 	temp.mat[3][0] = temp3.x;
 	temp.mat[3][1] = temp3.y;
 	temp.mat[3][2] = temp3.z;
-	temp.mat[3][3] = temp3.w;
+	temp.mat[3][3] = 1;
 
 	return temp;
 

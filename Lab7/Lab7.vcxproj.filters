@@ -46,5 +46,8 @@
     <FxCompile Include="Trivial_PS.hlsl">
       <Filter>Header Files</Filter>
     </FxCompile>
+    <FxCompile Include="PixelShader.hlsl">
+      <Filter>Header Files</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

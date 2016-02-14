@@ -35,6 +35,7 @@ using namespace std;
 // TODO: PART 2 STEP 6
 #include "Trivial_VS.csh"
 #include "Trivial_PS.csh"
+#include "PixelShader.csh"
 #define BACKBUFFER_WIDTH	1024
 #define BACKBUFFER_HEIGHT	768
 
@@ -69,6 +70,9 @@ class DEMO_APP
 	ID3D11Buffer * indexBuffer;
 	D3D11_BUFFER_DESC ibDesc;
 
+	ID3D11Buffer * indexBuffer2;
+	D3D11_BUFFER_DESC ibDesc2;
+
 	ID3D11Buffer * TO_SCENE_buffer;
 	D3D11_BUFFER_DESC tsbDesc;
 
@@ -90,6 +94,7 @@ class DEMO_APP
 	// TODO: PART 2 STEP 4
 	ID3D11VertexShader * VS;
 	ID3D11PixelShader * PS;
+	ID3D11PixelShader * PS2;
 	// BEGIN PART 3
 	// TODO: PART 3 STEP 1
 	ID3D11Buffer * buff2;
@@ -139,10 +144,10 @@ public:
 	ID3D11RasterizerState * RState;
 	D3D11_RASTERIZER_DESC rDesc;
 
-	Simple_Vert circle[24];
-
+	Simple_Vert circle[8];
+	Simple_Vert gq[4];
 	unsigned short index_array[36];
-
+	unsigned short index_array2[6];
 	ID3D11DepthStencilState * DSS;
 	D3D11_DEPTH_STENCIL_DESC dssDesc;
 
@@ -217,104 +222,110 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	scene.View = InverseDirty(cameraTransform);
 
 
-	circle[0].x = circle[14].x = circle[17].x = scene.View.mat[3][0] - .5;
-	circle[0].y = circle[14].y = circle[17].y = scene.View.mat[3][1] + .5;
-	circle[0].z = circle[14].z = circle[17].z = scene.View.mat[3][2] - .5;
-												
-	circle[1].x = circle[15].x = circle[21].x = scene.View.mat[3][0] - .5;
-	circle[1].y = circle[15].y = circle[21].y = scene.View.mat[3][1] - .5;
-	circle[1].z = circle[15].z = circle[21].z = scene.View.mat[3][2] - .5;
-												
-	circle[2].x = circle[4].x = circle[19].x = scene.View.mat[3][0] + .5;
-	circle[2].y = circle[4].y = circle[19].y = scene.View.mat[3][1] + .5;
-	circle[2].z = circle[4].z = circle[19].z = scene.View.mat[3][2] - .5;
-												
-	circle[3].x = circle[5].x = circle[23].x = scene.View.mat[3][0] + .5;
-	circle[3].y = circle[5].y = circle[23].y = scene.View.mat[3][1] - .5;
-	circle[3].z = circle[5].z = circle[23].z = scene.View.mat[3][2] - .5;
-												
-	circle[8].x = circle[12].x = circle[16].x = scene.View.mat[3][0] - .5;
-	circle[8].y = circle[12].y = circle[16].y = scene.View.mat[3][1] + .5;
-	circle[8].z = circle[12].z = circle[16].z = scene.View.mat[3][2] + .5;
-												
-	circle[9].x = circle[13].x = circle[20].x = scene.View.mat[3][0] - .5;
-	circle[9].y = circle[13].y = circle[20].y = scene.View.mat[3][1] - .5;
-	circle[9].z = circle[13].z = circle[20].z = scene.View.mat[3][2] + .5;
-												
-	circle[6].x = circle[10].x = circle[18].x = scene.View.mat[3][0] + .5;
-	circle[6].y = circle[10].y = circle[18].y = scene.View.mat[3][1] + .5;
-	circle[6].z = circle[10].z = circle[18].z = scene.View.mat[3][2] + .5;
-												
-	circle[11].x = circle[22].x = circle[7].x = scene.View.mat[3][0] + .5;
-	circle[11].y = circle[22].y = circle[7].y = scene.View.mat[3][1] - .5;
-	circle[11].z = circle[22].z = circle[7].z = scene.View.mat[3][2] + .5;
+	circle[0].x = cameraTransform.mat[3][0] - .5;
+	circle[0].y = cameraTransform.mat[3][1] + .5;
+	circle[0].z = cameraTransform.mat[3][2] - .5;
 
-	for (size_t i = 0; i < 8; i++)
-	{
-		circle[i * 4].u = 0;
-		circle[i * 4].v = 0;
+	circle[1].x = cameraTransform.mat[3][0] + .5;
+	circle[1].y = cameraTransform.mat[3][1] + .5;
+	circle[1].z = cameraTransform.mat[3][2] - .5;
 
-		circle[i * 4+1].u = 0;
-		circle[i * 4+1].v = 1;
+	circle[2].x = cameraTransform.mat[3][0] - .5;
+	circle[2].y = cameraTransform.mat[3][1] - .5;
+	circle[2].z = cameraTransform.mat[3][2] - .5;
 
-		circle[i * 4+2].u = 1;
-		circle[i * 4+2].v = 0;
+	circle[3].x = cameraTransform.mat[3][0] + .5;
+	circle[3].y = cameraTransform.mat[3][1] - .5;
+	circle[3].z = cameraTransform.mat[3][2] - .5;
 
-		circle[i * 4+3].u = 1;
-		circle[i * 4+3].v = 1;
-	}
+	circle[4].x = cameraTransform.mat[3][0] - .5;
+	circle[4].y = cameraTransform.mat[3][1] + .5;
+	circle[4].z = cameraTransform.mat[3][2] + .5;
+
+	circle[5].x = cameraTransform.mat[3][0] + .5;
+	circle[5].y = cameraTransform.mat[3][1] + .5;
+	circle[5].z = cameraTransform.mat[3][2] + .5;
+
+	circle[6].x = cameraTransform.mat[3][0] - .5;
+	circle[6].y = cameraTransform.mat[3][1] - .5;
+	circle[6].z = cameraTransform.mat[3][2] + .5;
+
+	circle[7].x = cameraTransform.mat[3][0] + .5;
+	circle[7].y = cameraTransform.mat[3][1] - .5;
+	circle[7].z = cameraTransform.mat[3][2] + .5;
 
 
+	gq[0].x = -.5;
+	gq[0].y = 0;
+	gq[0].z = .5;
 
+	gq[1].x = .5;
+	gq[1].y = 0;
+	gq[1].z = .5;
 
+	gq[2].x = -.5;
+	gq[2].y = 0;
+	gq[2].z = -.5;
+
+	gq[3].x = .5;
+	gq[3].y = 0;
+	gq[3].z = -.5;
+
+	index_array2[0] = 0;
+	index_array2[0] = 1;
+	index_array2[0] = 2;
+
+	index_array2[0] = 1;
+	index_array2[0] = 3;
+	index_array2[0] = 2;
 
 	index_array[0] = 0;
-	index_array[1] = 1;
-	index_array[2] = 2;
+	index_array[1] = 3;
+	index_array[2] = 1;
 
-	index_array[3] = 1;
-	index_array[4] = 3;
-	index_array[5] = 2;
+	index_array[3] = 0;
+	index_array[4] = 2;
+	index_array[5] = 3;
 
-	index_array[6] = 4;
-	index_array[7] = 5;
-	index_array[8] = 6;
+	index_array[6] = 1;
+	index_array[7] = 7;
+	index_array[8] = 5;
 
-	index_array[9] = 5;
-	index_array[10] = 7;
-	index_array[11] = 6;
+	index_array[9] = 1;
+	index_array[10] = 3;
+	index_array[11] = 7;
 
-	index_array[12] = 8;
-	index_array[13] = 9;
-	index_array[14] = 10;
+	index_array[12] = 4;
+	index_array[13] = 5;
+	index_array[14] = 7;
 
-	index_array[15] = 9;
-	index_array[16] = 11;
-	index_array[17] = 10;
+	index_array[15] = 4;
+	index_array[16] = 7;
+	index_array[17] = 6;
 
-	index_array[18] = 14;
-	index_array[19] = 15;
-	index_array[20] = 12;
+	index_array[18] = 0;
+	index_array[19] = 4;
+	index_array[20] = 6;
 
-	index_array[21] = 15;
-	index_array[22] = 13;
-	index_array[23] = 12;
+	index_array[21] = 0;
+	index_array[22] = 6;
+	index_array[23] = 2;
 
-	index_array[24] = 20;
-	index_array[25] = 21;
-	index_array[26] = 22;
+	index_array[24] = 2;
+	index_array[25] = 6;
+	index_array[26] = 7;
 
-	index_array[27] = 21;
-	index_array[28] = 23;
-	index_array[29] = 22;
+	index_array[27] = 2;
+	index_array[28] = 7;
+	index_array[29] = 3;
 
-	index_array[30] = 16;
-	index_array[31] = 17;
-	index_array[32] = 18;
+	index_array[30] = 0;
+	index_array[31] = 1;
+	index_array[32] = 5;
 
-	index_array[33] = 17;
-	index_array[34] = 19;
-	index_array[35] = 18;
+	index_array[33] = 0;
+	index_array[34] = 5;
+	index_array[35] = 4;
 	
 	// BEGIN PART 4
 	// TODO: PART 4 STEP 1
@@ -335,17 +346,20 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	dssDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
 	dssDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
 	
-	
+	Device->CreateDepthStencilState(&dssDesc, &DSS);
+	CreateDDSTextureFromFile(Device, L"skybox.dds", NULL, &skybox);
 
-	scene.Proj.mat[1][1] = 1 / tan(60);
+
+
+	scene.Proj.mat[1][1] = 1 / tan(Degree_to_rad(50));
 	scene.Proj.mat[0][0] = scene.Proj.mat[1][1] * (BACKBUFFER_WIDTH / BACKBUFFER_HEIGHT);
 	scene.Proj.mat[2][2] = (zFar - zNear) / zFar;
 	scene.Proj.mat[2][3] = 1;
 	scene.Proj.mat[3][3] = 0;
-	scene.Proj.mat[3][2] = (zFar * zNear) / (zFar - zNear);
+	scene.Proj.mat[3][2] = -(zFar * zNear) / (zFar - zNear);
 
 	ZeroMemory(&rDesc, sizeof(D3D11_RASTERIZER_DESC));
-	rDesc.FillMode = D3D11_FILL_WIREFRAME;
+	rDesc.FillMode = D3D11_FILL_SOLID;
 	rDesc.CullMode = D3D11_CULL_NONE;
 	rDesc.FrontCounterClockwise = false;
 	rDesc.DepthClipEnable = false;
@@ -355,10 +369,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	Device->CreateRasterizerState(&rDesc, &RState);
 	
 	ZeroMemory(&bDesc, sizeof(D3D11_BUFFER_DESC));
-	bDesc.ByteWidth = sizeof(Simple_Vert) * 24;
-	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	bDesc.ByteWidth = sizeof(Simple_Vert) * 8;
+	bDesc.Usage = D3D11_USAGE_DYNAMIC;
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bDesc.CPUAccessFlags = NULL;
+	bDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
 	ZeroMemory(&tsbDesc, sizeof(D3D11_BUFFER_DESC));
 	tsbDesc.ByteWidth = sizeof(TO_SCENE);
@@ -378,6 +392,12 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	ibDesc.CPUAccessFlags = NULL;
 
+	ZeroMemory(&ibDesc2, sizeof(D3D11_BUFFER_DESC));
+	ibDesc2.ByteWidth = sizeof(unsigned int) * 6;
+	ibDesc2.Usage = D3D11_USAGE_IMMUTABLE;
+	ibDesc2.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	ibDesc2.CPUAccessFlags = NULL;
+
     // TODO: PART 2 STEP 3c
 	D3D11_SUBRESOURCE_DATA data3;
 	ZeroMemory(&data3, sizeof(D3D11_SUBRESOURCE_DATA));
@@ -386,7 +406,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	D3D11_SUBRESOURCE_DATA data_index;
 	ZeroMemory(&data_index, sizeof(D3D11_SUBRESOURCE_DATA));
 	data_index.pSysMem = index_array;
-	
+
+	D3D11_SUBRESOURCE_DATA data_index2;
+	ZeroMemory(&data_index2, sizeof(D3D11_SUBRESOURCE_DATA));
+	data_index2.pSysMem = index_array2;
 
 	D3D11_SUBRESOURCE_DATA worldmat;
 	ZeroMemory(&worldmat, sizeof(D3D11_SUBRESOURCE_DATA));
@@ -398,6 +421,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	
 	Device->CreateBuffer(&bDesc, &data3, &verts);
 	Device->CreateBuffer(&ibDesc, &data_index, &indexBuffer);
+	Device->CreateBuffer(&ibDesc2, &data_index2, &indexBuffer2);
 	Device->CreateBuffer(&tsbDesc,NULL, &TO_SCENE_buffer);
 	Device->CreateBuffer(&tobDesc,NULL, &TO_OBJECT_buffer);
 	
@@ -415,38 +439,40 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	Device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &VS);
 	Device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &PS);
+	Device->CreatePixelShader(PixelShader, sizeof(PixelShader), NULL, &PS2);
 	// TODO: PART 2 STEP 8a
 	
 	
 	D3D11_INPUT_ELEMENT_DESC layout[] =
 	{
-		{"Position", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"Normal", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
 		{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 	
 	
 
 	// TODO: PART 2 STEP 8b
-	Device->CreateInputLayout(layout, 1, Trivial_VS, sizeof(Trivial_VS), &iLay);
+	Device->CreateInputLayout(layout, 3, Trivial_VS, sizeof(Trivial_VS), &iLay);
 	// TODO: PART 3 STEP 3
 	ZeroMemory(&buff2Desc, sizeof(D3D11_BUFFER_DESC));
-	buff2Desc.ByteWidth = sizeof(toShader);
-	buff2Desc.Usage = D3D11_USAGE_DYNAMIC;
-	buff2Desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	buff2Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	Device->CreateBuffer(&buff2Desc, NULL, &buff2);
+	buff2Desc.ByteWidth = sizeof(Simple_Vert) * 4;
+	buff2Desc.Usage = D3D11_USAGE_IMMUTABLE;
+	buff2Desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	buff2Desc.CPUAccessFlags = NULL;
+
+	D3D11_SUBRESOURCE_DATA buff2Data;
+	ZeroMemory(&buff2Data, sizeof(D3D11_SUBRESOURCE_DATA));
+	buff2Data.pSysMem = gq;
+
+
+
+	Device->CreateBuffer(&buff2Desc, &buff2Data, &buff2);
 	// TODO: PART 3 STEP 4b
-	toShader.constantColor[0] = 1.0f;
-	toShader.constantColor[1] = 1.0f;
-	toShader.constantColor[2] = 0.0f;
-	toShader.constantColor[3] = 1.0f;
-
-	toShader.constantOffset[0] = 0.0f;
-	toShader.constantOffset[1] = 0.0f;
 
 
-	CreateDDSTextureFromFile(Device, L"skybox.dds",NULL, &skybox);
+
+	
 
 	ID3D11Texture2D* DepthStencil = NULL;
 	D3D11_TEXTURE2D_DESC DepthDesc;
@@ -579,8 +605,7 @@ bool DEMO_APP::Run()
 		scene.View.mat[3][1] += .0005;
 	}
 
-
-
+	
 
 
 	// TODO: PART 4 STEP 2	
@@ -623,6 +648,13 @@ bool DEMO_APP::Run()
 	Context->Unmap(buff2, NULL);
 	*/
 
+	TO_SCENE temp;
+	temp.Proj = scene.Proj;
+	temp.View = scene.View;
+
+	temp.View.mat[3][0] = 0;
+	temp.View.mat[3][1] = 0;
+	temp.View.mat[3][2] = 0;
 	D3D11_MAPPED_SUBRESOURCE data;
 	ZeroMemory(&data, sizeof(D3D11_MAPPED_SUBRESOURCE));
 
@@ -631,11 +663,11 @@ bool DEMO_APP::Run()
 	Context->Unmap(TO_OBJECT_buffer, NULL);
 
 	Context->Map(TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
-	memcpy(data.pData, &scene, sizeof(scene));
+	memcpy(data.pData, &temp, sizeof(scene));
 	Context->Unmap(TO_SCENE_buffer, NULL);
 
 
-
+	Context->IASetInputLayout(iLay);
 	// TODO: PART 3 STEP 6
 	Context->VSSetConstantBuffers(1, 1, &TO_OBJECT_buffer);
 	Context->VSSetConstantBuffers(2, 1, &TO_SCENE_buffer);
@@ -650,14 +682,30 @@ bool DEMO_APP::Run()
 	Context->OMSetDepthStencilState(DSS, 1);
 	Context->PSSetShaderResources(0, 1, &skybox);
 	// TODO: PART 2 STEP 9c
-	Context->IASetInputLayout(iLay);
+	
 	// TODO: PART 2 STEP 9d
 	Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	// TODO: PART 2 STEP 10
 	//Context->Draw(3, 0);
 	Context->DrawIndexed(36, 0, 0);
+
+
 	// END PART 2
 	Context->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH, 1.0, NULL);
+
+	Context->IASetVertexBuffers(0, 1, &buff2, &size, &offset);
+
+	Context->Map(TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
+	memcpy(data.pData, &scene, sizeof(scene));
+	Context->Unmap(TO_SCENE_buffer, NULL);
+
+
+
+	Context->PSSetShader(PS2, NULL, NULL);
+	Context->DrawIndexed(6, 0, 0);
+
+
+
 	// TODO: PART 1 STEP 8
 	SwapChain->Present(NULL, NULL);
 	// END OF PART 1
@@ -676,6 +724,7 @@ bool DEMO_APP::ShutDown()
 	Context->Release();
 	Device->Release();
 	indexBuffer->Release();
+	indexBuffer2->Release();
 	TO_SCENE_buffer->Release();
 	TO_OBJECT_buffer->Release();
 	iLay->Release();
@@ -687,6 +736,7 @@ bool DEMO_APP::ShutDown()
 	verts->Release();
 	DSS->Release();
 	skybox->Release();
+	PS2->Release();
 	
 	UnregisterClass( L"DirectXApplication", application ); 
 	return true;

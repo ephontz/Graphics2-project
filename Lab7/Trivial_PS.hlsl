@@ -1,12 +1,12 @@
-TextureCube skybox : register(t0);
+textureCUBE skybox : register(t0);
 
 SamplerState samp : register(s0);
 
 struct INPUT
 {
-	float3 uv : UV;
 	float4 pos : SV_POSITION;
 	float3 norm : NORMAL;
+	float3 uv : UV;
 };
 
 
