@@ -37,6 +37,8 @@ using namespace std;
 #include "Trivial_PS.csh"
 #include "PixelShader.csh"
 #include "VertexShader.csh"
+#include "VertexShader1.csh"
+#include "GeometryShader.csh"
 #define BACKBUFFER_WIDTH	1024
 #define BACKBUFFER_HEIGHT	768
 IDXGISwapChain * SwapChain;
@@ -100,8 +102,10 @@ public:
 	unsigned int count = 360;
 	D3D11_BUFFER_DESC bDesc;
 	ID3D11InputLayout * iLay;
-	
-	
+	ID3D11InputLayout * iLay2;
+	ID3D11Buffer * p2q;
+	D3D11_BUFFER_DESC p2qDesc;
+
 	
 	
 	// BEGIN PART 5
@@ -110,6 +114,8 @@ public:
 	// TODO: PART 2 STEP 4
 	ID3D11VertexShader * VS;
 	ID3D11VertexShader * VS2;
+	ID3D11VertexShader * VS3;
+	ID3D11GeometryShader * GS;
 	ID3D11PixelShader * PS;
 	ID3D11PixelShader * PS2;
 	// BEGIN PART 3
@@ -266,6 +272,9 @@ void ThreadDraw(DEMO_APP * app)
 	app->defCon->PSSetConstantBuffers(0, 1, &app->Dlight);
 	app->defCon->PSSetConstantBuffers(1, 1, &app->Plight);
 	app->defCon->PSSetConstantBuffers(2, 1, &app->Slight);
+	app->defCon->IASetInputLayout(app->iLay2);
+	app->defCon->GSSetConstantBuffers(1, 1, &app->TO_OBJECT_buffer);
+	app->defCon->GSSetConstantBuffers(2, 1, &app->TO_SCENE_buffer);
 	unsigned int size = sizeof(DEMO_APP::Simple_Vert);
 	unsigned int offset = 0;
 	app->defCon->IASetVertexBuffers(0, 1, &app->verts, &size, &offset);
@@ -295,10 +304,13 @@ void ThreadDraw(DEMO_APP * app)
 	app->defCon->PSSetShaderResources(1,1,&app->texture);
 	app->defCon->VSSetShader(app->VS2, NULL, NULL);
 	app->defCon->DrawIndexed(6,0,0);
-
-
-
-
+	app->defCon->IASetInputLayout(app->iLay2);
+	app->defCon->VSSetShader(app->VS3, NULL, NULL);
+	app->defCon->GSSetShader(app->GS, NULL, NULL);
+	app->defCon->IASetVertexBuffers(0, 1, &app->p2q, &size, &offset);
+	app->defCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+	app->defCon->Draw(1, 0);
+	app->defCon->GSSetShader(NULL, NULL, NULL);
 	app->defCon->RSSetViewports(1, &VP);
 
 	app->defCon->RSSetState(app->RState);
@@ -619,7 +631,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	// TODO: PART 2 STEP 3b
 
-	
+	Simple_Vert pquad[1];
+	pquad[0].x = 0;
+	pquad[0].y = .7;
+	pquad[0].z = 75;
+		 
+	pquad[0].NormX = 0;
+	pquad[0].NormY = 0;
+	pquad[0].NormZ = -1;
 
 
 	float zNear = .1;
@@ -668,6 +687,13 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
+	ZeroMemory(&p2qDesc, sizeof(D3D11_BUFFER_DESC));
+	p2qDesc.ByteWidth = sizeof(Simple_Vert);
+	p2qDesc.Usage = D3D11_USAGE_DYNAMIC;
+	p2qDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	p2qDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+
 	ZeroMemory(&tsbDesc, sizeof(D3D11_BUFFER_DESC));
 	tsbDesc.ByteWidth = sizeof(TO_SCENE);
 	tsbDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -710,6 +736,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//worldmat.pSysMem = world;
 	D3D11_SUBRESOURCE_DATA scenemat;
 	ZeroMemory(&scenemat, sizeof(D3D11_SUBRESOURCE_DATA));
+	D3D11_SUBRESOURCE_DATA p2qdata;
+	ZeroMemory(&p2qdata, sizeof(D3D11_SUBRESOURCE_DATA));
+	p2qdata.pSysMem = pquad;
 	//scenemat.pSysMem = scene;
 	// TODO: PART 2 STEP 3d
 	
@@ -718,7 +747,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	Device->CreateBuffer(&ibDesc2, &data_index2, &indexBuffer2);
 	Device->CreateBuffer(&tsbDesc,NULL, &TO_SCENE_buffer);
 	Device->CreateBuffer(&tobDesc,NULL, &TO_OBJECT_buffer);
-	
+	Device->CreateBuffer(&p2qDesc, &p2qdata, &p2q);
 	// TODO: PART 5 STEP 2a
 	
 	// TODO: PART 5 STEP 2b
@@ -735,6 +764,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	Device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &PS);
 	Device->CreatePixelShader(PixelShader, sizeof(PixelShader), NULL, &PS2);
 	Device->CreateVertexShader(VertexShader, sizeof(VertexShader), NULL, &VS2);
+	Device->CreateVertexShader(VertexShader1, sizeof(VertexShader1), NULL, &VS3);
+	Device->CreateGeometryShader(GeometryShader, sizeof(GeometryShader), NULL, &GS);
 	// TODO: PART 2 STEP 8a
 	
 	
@@ -749,6 +780,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	// TODO: PART 2 STEP 8b
 	Device->CreateInputLayout(layout, 3, Trivial_VS, sizeof(Trivial_VS), &iLay);
+	Device->CreateInputLayout(layout, 3, VertexShader1, sizeof(VertexShader1), &iLay2);
 	// TODO: PART 3 STEP 3
 	ZeroMemory(&buff2Desc, sizeof(D3D11_BUFFER_DESC));
 	buff2Desc.ByteWidth = sizeof(Simple_Vert) * 4;
@@ -975,6 +1007,10 @@ bool DEMO_APP::ShutDown()
 	Slight->Release();
 	texture->Release();
 	VS2->Release();
+	p2q->Release();
+	VS3->Release();
+	GS->Release();
+	iLay2->Release();
 	UnregisterClass( L"DirectXApplication", application ); 
 	return true;
 }
