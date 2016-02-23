@@ -19,7 +19,7 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include "DDSTextureLoader.h"
-
+#include <thread>
 
 using namespace DirectX;
 using namespace std;
@@ -36,32 +36,38 @@ using namespace std;
 #include "Trivial_VS.csh"
 #include "Trivial_PS.csh"
 #include "PixelShader.csh"
+#include "VertexShader.csh"
 #define BACKBUFFER_WIDTH	1024
 #define BACKBUFFER_HEIGHT	768
-
+IDXGISwapChain * SwapChain;
+ID3D11Device * Device;
+ID3D11DeviceContext * Context;
+ID3D11RenderTargetView *bBuffer;
+ID3D11DepthStencilView * DSV;
+D3D11_VIEWPORT ViewPort;
+D3D11_VIEWPORT VP;
 //************************************************************
 //************ SIMPLE WINDOWS APP CLASS **********************
 //************************************************************
 
 class DEMO_APP
 {	
+public:
 	HINSTANCE						application;
 	WNDPROC							appWndProc;
 	HWND							window;
 	// TODO: PART 1 STEP 2
-	ID3D11Device * Device;
-	IDXGISwapChain * SwapChain;
-	ID3D11DeviceContext * Context;
-	ID3D11RenderTargetView *bBuffer;
-	D3D11_VIEWPORT ViewPort;
 
-
+	
+	
+	ID3D11DeviceContext * defCon;
+	ID3D11CommandList * list;
 
 
 	
 
 	ID3D11ShaderResourceView * skybox;
-	
+	ID3D11ShaderResourceView * texture;
 
 
 
@@ -79,6 +85,14 @@ class DEMO_APP
 	ID3D11Buffer * TO_OBJECT_buffer;
 	D3D11_BUFFER_DESC tobDesc;
 
+	ID3D11Buffer * Dlight;
+	D3D11_BUFFER_DESC dlDesc;
+
+	ID3D11Buffer * Plight;
+	D3D11_BUFFER_DESC plDesc;
+
+	ID3D11Buffer * Slight;
+	D3D11_BUFFER_DESC slDesc;
 
 
 	// TODO: PART 2 STEP 2
@@ -88,11 +102,14 @@ class DEMO_APP
 	ID3D11InputLayout * iLay;
 	
 	
+	
+	
 	// BEGIN PART 5
 	// TODO: PART 5 STEP 1
 	
 	// TODO: PART 2 STEP 4
 	ID3D11VertexShader * VS;
+	ID3D11VertexShader * VS2;
 	ID3D11PixelShader * PS;
 	ID3D11PixelShader * PS2;
 	// BEGIN PART 3
@@ -108,7 +125,7 @@ class DEMO_APP
 	};
 	// TODO: PART 3 STEP 4a
 	SEND_TO_VRAM toShader;
-	ID3D11DepthStencilView * DSV;
+
 
 	struct TO_OBJECT
 	{
@@ -136,7 +153,25 @@ public:
 		float NormX, NormY, NormZ;
 		float u, v;
 	};
+
+	struct StationLight
+	{
+		float x, y, z, w;
+		float a, r, g, b;
+	};
 	
+
+	struct LocalLight
+	{
+		float pos[4];
+		float x, y, z, w;
+		float a, r, g, b;
+	};
+
+	StationLight direct;
+	LocalLight pointl;
+	LocalLight spot;
+
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
 	bool ShutDown();
@@ -151,8 +186,194 @@ public:
 	ID3D11DepthStencilState * DSS;
 	D3D11_DEPTH_STENCIL_DESC dssDesc;
 
+	float check = 0;
+	float move = .5;
 
 };
+
+void ThreadLoader(const wchar_t * path, ID3D11ShaderResourceView ** SRV, DEMO_APP * str)
+{
+	CreateDDSTextureFromFile(Device, path, NULL, SRV);
+}
+
+void ThreadDraw(DEMO_APP * app)
+{
+
+	app->defCon->OMSetRenderTargets(1, &bBuffer, NULL);
+	
+	app->defCon->RSSetViewports(1, &ViewPort);
+	app->defCon->RSSetState(app->RState);
+
+	app->direct.z += app->move;
+	app->spot.pos[0] += app->move;
+	app->pointl.pos[0] -= app->move;
+	app->check += app->move;
+	if (app->check >= 1000 || app->check <= -1000)
+	{
+ 		app->move *= -1;
+	}
+	
+	float color[4];
+	color[0] = 0;
+	color[1] = 0;
+	color[2] = 0;
+	color[3] = 1;
+	app->defCon->ClearRenderTargetView(bBuffer, color);
+	app->defCon->ClearDepthStencilView(DSV, NULL, 1, NULL);
+
+
+	DEMO_APP::TO_SCENE temp;
+	temp.Proj = app->scene.Proj;
+	temp.View = app->scene.View;
+
+	temp.View.mat[3][0] = 0;
+	temp.View.mat[3][1] = 0;
+	temp.View.mat[3][2] = 0;
+	D3D11_MAPPED_SUBRESOURCE data;
+	ZeroMemory(&data, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+
+	D3D11_MAPPED_SUBRESOURCE lightData;
+
+	
+
+
+
+	app->defCon->Map(app->TO_OBJECT_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
+	memcpy(data.pData, &app->world, sizeof(app->world));
+	app->defCon->Unmap(app->TO_OBJECT_buffer, NULL);
+
+	app->defCon->Map(app->TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
+	memcpy(data.pData, &temp, sizeof(app->scene));
+	app->defCon->Unmap(app->TO_SCENE_buffer, NULL);
+
+	app->defCon->Map(app->Dlight, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &lightData);
+	memcpy(lightData.pData, &app->direct, sizeof(app->direct));
+	app->defCon->Unmap(app->Dlight, NULL);
+
+	app->defCon->Map(app->Plight, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &lightData);
+	memcpy(lightData.pData, &app->pointl, sizeof(app->pointl));
+	app->defCon->Unmap(app->Plight, NULL);
+
+	app->defCon->Map(app->Slight, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &lightData);
+	memcpy(lightData.pData, &app->spot, sizeof(app->spot));
+	app->defCon->Unmap(app->Slight, NULL);
+
+	app->defCon->IASetInputLayout(app->iLay);
+
+	app->defCon->VSSetConstantBuffers(1, 1, &app->TO_OBJECT_buffer);
+	app->defCon->VSSetConstantBuffers(2, 1, &app->TO_SCENE_buffer);
+	app->defCon->PSSetConstantBuffers(0, 1, &app->Dlight);
+	app->defCon->PSSetConstantBuffers(1, 1, &app->Plight);
+	app->defCon->PSSetConstantBuffers(2, 1, &app->Slight);
+	unsigned int size = sizeof(DEMO_APP::Simple_Vert);
+	unsigned int offset = 0;
+	app->defCon->IASetVertexBuffers(0, 1, &app->verts, &size, &offset);
+	app->defCon->IASetIndexBuffer(app->indexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
+	app->defCon->VSSetShader(app->VS, NULL, NULL);
+	app->defCon->PSSetShader(app->PS, NULL, NULL);
+	app->defCon->OMSetDepthStencilState(app->DSS, 1);
+	app->defCon->PSSetShaderResources(0, 1, &app->skybox);
+
+	app->defCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+
+	app->defCon->DrawIndexed(36, 0, 0);
+
+	app->defCon->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH, 1.0, NULL);
+
+	app->defCon->IASetVertexBuffers(0, 1, &app->buff2, &size, &offset);
+
+	app->defCon->Map(app->TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
+	memcpy(data.pData, &app->scene, sizeof(app->scene));
+	app->defCon->Unmap(app->TO_SCENE_buffer, NULL);
+
+
+
+	app->defCon->PSSetShader(app->PS2, NULL, NULL);
+	app->defCon->PSSetShaderResources(1,1,&app->texture);
+	app->defCon->VSSetShader(app->VS2, NULL, NULL);
+	app->defCon->DrawIndexed(6,0,0);
+
+
+
+
+	app->defCon->RSSetViewports(1, &VP);
+
+	app->defCon->RSSetState(app->RState);
+
+
+
+
+
+	//app->defCon->ClearRenderTargetView(bBuffer, color);
+	//app->defCon->ClearDepthStencilView(DSV, NULL, 1, NULL);
+
+
+	
+	temp.Proj = app->scene.Proj;
+	temp.View = app->scene.View;
+
+	temp.View.mat[3][0] = 0;
+	temp.View.mat[3][1] = 0;
+	temp.View.mat[3][2] = 0;
+	temp.View = RotateY(temp.View, Degree_to_rad(180));
+	ZeroMemory(&data, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+
+	app->defCon->Map(app->TO_OBJECT_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
+	memcpy(data.pData, &app->world, sizeof(app->world));
+	app->defCon->Unmap(app->TO_OBJECT_buffer, NULL);
+
+	app->defCon->Map(app->TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
+	memcpy(data.pData, &temp, sizeof(app->scene));
+	app->defCon->Unmap(app->TO_SCENE_buffer, NULL);
+
+	
+	app->defCon->IASetInputLayout(app->iLay);
+
+	app->defCon->VSSetConstantBuffers(1, 1, &app->TO_OBJECT_buffer);
+	app->defCon->VSSetConstantBuffers(2, 1, &app->TO_SCENE_buffer);
+
+	size = sizeof(DEMO_APP::Simple_Vert);
+	offset = 0;
+	app->defCon->IASetVertexBuffers(0, 1, &app->verts, &size, &offset);
+	app->defCon->IASetIndexBuffer(app->indexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
+	app->defCon->VSSetShader(app->VS, NULL, NULL);
+	app->defCon->PSSetShader(app->PS, NULL, NULL);
+	app->defCon->OMSetDepthStencilState(app->DSS, 1);
+	app->defCon->PSSetShaderResources(0, 1, &app->skybox);
+
+	app->defCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+
+	app->defCon->DrawIndexed(36, 0, 0);
+
+	app->defCon->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH, 1.0, NULL);
+	app->defCon->PSSetShader(app->PS2, NULL, NULL);
+	app->defCon->IASetVertexBuffers(0, 1, &app->buff2, &size, &offset);
+
+	app->defCon->Map(app->TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
+	memcpy(data.pData, &app->scene, sizeof(app->scene));
+	app->defCon->Unmap(app->TO_SCENE_buffer, NULL);
+
+
+
+	
+	app->defCon->DrawIndexed(6, 0, 0);
+
+
+
+
+
+
+
+	app->defCon->FinishCommandList(false, &app->list);
+}
+
+
 
 //************************************************************
 //************ CREATION OF OBJECTS & RESOURCES ***************
@@ -179,7 +400,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	RECT window_size = { 0, 0, BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT };
 	AdjustWindowRect(&window_size, WS_OVERLAPPEDWINDOW, false);
 
-	window = CreateWindow(	L"DirectXApplication", L"Lab 1a Line Land",	WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME|WS_MAXIMIZEBOX), 
+	window = CreateWindow(	L"DirectXApplication", L"Lab 1a Line Land",	WS_OVERLAPPEDWINDOW, // & ~(WS_THICKFRAME|WS_MAXIMIZEBOX), 
 							CW_USEDEFAULT, CW_USEDEFAULT, window_size.right-window_size.left, window_size.bottom-window_size.top,					
 							NULL, NULL,	application, this );												
 
@@ -199,9 +420,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	desc.OutputWindow = window;
 	desc.Windowed = true;
-	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Count = 4;
 	// TODO: PART 1 STEP 3b
 	D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, D3D11_CREATE_DEVICE_DEBUG,NULL, NULL, D3D11_SDK_VERSION, &desc,&SwapChain, &Device, NULL, &Context);
+	Device->CreateDeferredContext(NULL, &defCon);
 	// TODO: PART 1 STEP 4
 	ID3D11Texture2D * Surface;
 	SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&Surface));
@@ -215,6 +437,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ViewPort.MaxDepth = 1;
 	ViewPort.TopLeftX = 0;
 	ViewPort.TopLeftY = 0;
+
+	ZeroMemory(&VP, sizeof(D3D11_VIEWPORT));
+	VP.Height = BACKBUFFER_HEIGHT/4;
+	VP.Width = BACKBUFFER_WIDTH/4;
+	VP.MinDepth = 0;
+	VP.MaxDepth = 1;
+	VP.TopLeftX = 0;
+	VP.TopLeftY = 0;
 	// TODO: PART 2 STEP 3a
 
 	//cameraTransform.mat[3][2] = -10;
@@ -270,6 +500,25 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	gq[3].x = .5;
 	gq[3].y = 0;
 	gq[3].z = -.5;
+
+	for (size_t i = 0; i < 4; i++)
+	{
+		gq[i].NormX = 0;
+		gq[i].NormY = 1;
+		gq[i].NormZ = 0;
+	}
+
+	gq[0].u = 0;
+	gq[0].v = 0;
+
+	gq[1].u = 1;
+	gq[1].v = 0;
+
+	gq[2].u = 0;
+	gq[2].v = 1;
+
+	gq[3].u = 1;
+	gq[3].v = 1;
 
 	index_array2[0] = 0;
 	index_array2[0] = 1;
@@ -327,6 +576,44 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	index_array[34] = 5;
 	index_array[35] = 4;
 	
+	direct.x = .5;
+	direct.y = .5;
+	direct.z = 0;
+
+	direct.a = 1;
+	direct.r = 0;
+	direct.g = 0;
+	direct.b = .25;
+
+	pointl.x = -.2;
+	pointl.y = -.2;
+	pointl.z = 0;
+
+	pointl.a = 0;
+	pointl.r = 1;
+	pointl.g = 0;
+	pointl.b = .25;
+
+	pointl.pos[0] = .2;
+	pointl.pos[1] = .2;
+	pointl.pos[2] = 0;
+	pointl.pos[3] = 0;
+
+	
+
+	spot.a = 0;
+	spot.r = 0;
+	spot.g = 1;
+	spot.b = .25;
+
+	spot.pos[0] = -.2;
+	spot.pos[1] = -.2;
+	spot.pos[2] = 0;
+	spot.pos[3] = 0;
+
+	spot.x = -spot.pos[0];
+	spot.y = -spot.pos[1];
+	spot.z = -spot.pos[2];
 	// BEGIN PART 4
 	// TODO: PART 4 STEP 1
 
@@ -347,7 +634,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	dssDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
 	
 	Device->CreateDepthStencilState(&dssDesc, &DSS);
-	CreateDDSTextureFromFile(Device, L"skybox.dds", NULL, &skybox);
+	//CreateDDSTextureFromFile(Device, L"skybox.dds", NULL, &skybox);
+	thread thing(ThreadLoader, L"skybox.dds", &skybox, this);
+	thing.join();
+
+
+
+	thread thing2(ThreadLoader, L"brownRoof_seamless.dds", &texture, this);
+	thing2.join();
 
 
 
@@ -440,6 +734,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	Device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &VS);
 	Device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &PS);
 	Device->CreatePixelShader(PixelShader, sizeof(PixelShader), NULL, &PS2);
+	Device->CreateVertexShader(VertexShader, sizeof(VertexShader), NULL, &VS2);
 	// TODO: PART 2 STEP 8a
 	
 	
@@ -486,7 +781,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	DepthDesc.ArraySize = 1;
 
 	DepthDesc.Format = DXGI_FORMAT_D32_FLOAT;
-	DepthDesc.SampleDesc.Count = 1;
+	DepthDesc.SampleDesc.Count = 4;
 	DepthDesc.SampleDesc.Quality = 0;
 
 	DepthDesc.Usage = D3D11_USAGE_DEFAULT;
@@ -523,7 +818,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	D3D11_DEPTH_STENCIL_VIEW_DESC DSVdesc;
 	ZeroMemory(&DSVdesc, sizeof(D3D11_DEPTH_STENCIL_VIEW_DESC));
 	DSVdesc.Format = DXGI_FORMAT_D32_FLOAT;
-	DSVdesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	DSVdesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
 	DSVdesc.Texture2D.MipSlice = 0;
 
 	Device->CreateDepthStencilView(DepthStencil, &DSVdesc, &DSV);
@@ -532,13 +827,40 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 
+	// lighting constant buffer
+#pragma region
 
+	ZeroMemory(&dlDesc, sizeof(D3D11_BUFFER_DESC));
+	dlDesc.ByteWidth = sizeof(StationLight);
+	dlDesc.Usage = D3D11_USAGE_DYNAMIC;
+	dlDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	dlDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
+	ZeroMemory(&plDesc, sizeof(D3D11_BUFFER_DESC));
+	plDesc.ByteWidth = sizeof(LocalLight);
+	plDesc.Usage = D3D11_USAGE_DYNAMIC;
+	plDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	plDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
+	ZeroMemory(&slDesc, sizeof(D3D11_BUFFER_DESC));
+	slDesc.ByteWidth = sizeof(LocalLight);
+	slDesc.Usage = D3D11_USAGE_DYNAMIC;
+	slDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	slDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
+	D3D11_SUBRESOURCE_DATA DirLight;
+	ZeroMemory(&DirLight, sizeof(D3D11_SUBRESOURCE_DATA));
 
+	D3D11_SUBRESOURCE_DATA PointLight;
+	ZeroMemory(&PointLight, sizeof(D3D11_SUBRESOURCE_DATA));
 
+	D3D11_SUBRESOURCE_DATA SpotLight;
+	ZeroMemory(&SpotLight, sizeof(D3D11_SUBRESOURCE_DATA));
 
+	Device->CreateBuffer(&dlDesc, NULL, &Dlight);
+	Device->CreateBuffer(&plDesc, NULL, &Plight);
+	Device->CreateBuffer(&slDesc, NULL, &Slight);
+#pragma endregion
 
 
 
@@ -554,8 +876,8 @@ bool DEMO_APP::Run()
 {
 
 
-
-
+ //input code
+#pragma region
 	if (GetAsyncKeyState(VK_UP))
 	{
 		scene.View = RotateX(scene.View, Deg2Rad(-.00001));
@@ -605,107 +927,17 @@ bool DEMO_APP::Run()
 		scene.View.mat[3][1] += .0005;
 	}
 
+#pragma endregion
+
+	thread stuff(ThreadDraw, this);
+	stuff.join();
+	if (list)
+	{
+		Context->ExecuteCommandList(list, false);
+		list->Release();
+		list = nullptr;
+	}
 	
-
-
-	// TODO: PART 4 STEP 2	
-	
-	// TODO: PART 4 STEP 3
-	
-	// TODO: PART 4 STEP 5
-	
-	// END PART 4
-
-	// TODO: PART 1 STEP 7a
-	Context->OMSetRenderTargets(1, &bBuffer, NULL);
-	// TODO: PART 1 STEP 7b
-	Context->RSSetViewports(1, &ViewPort);
-	Context->RSSetState(RState);
-	// TODO: PART 1 STEP 7c
-	float color[4];
-	color[0] = 0;
-	color[1] = 0;
-	color[2] = 0;
-	color[3] = 1;
-	Context->ClearRenderTargetView(bBuffer, color);
-	Context->ClearDepthStencilView(DSV, NULL, 1, NULL);
-	// TODO: PART 5 STEP 4
-	
-	// TODO: PART 5 STEP 5
-	
-	// TODO: PART 5 STEP 6
-	
-	// TODO: PART 5 STEP 7
-	
-	// END PART 5
-	
-	// TODO: PART 3 STEP 5
-	/*
-	D3D11_MAPPED_SUBRESOURCE data;
-	ZeroMemory(&data, sizeof(D3D11_MAPPED_SUBRESOURCE));
-	Context->Map(buff2, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
-	memcpy(data.pData, &toShader, sizeof(toShader));
-	Context->Unmap(buff2, NULL);
-	*/
-
-	TO_SCENE temp;
-	temp.Proj = scene.Proj;
-	temp.View = scene.View;
-
-	temp.View.mat[3][0] = 0;
-	temp.View.mat[3][1] = 0;
-	temp.View.mat[3][2] = 0;
-	D3D11_MAPPED_SUBRESOURCE data;
-	ZeroMemory(&data, sizeof(D3D11_MAPPED_SUBRESOURCE));
-
-	Context->Map(TO_OBJECT_buffer,NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
-	memcpy(data.pData, &world, sizeof(world));
-	Context->Unmap(TO_OBJECT_buffer, NULL);
-
-	Context->Map(TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
-	memcpy(data.pData, &temp, sizeof(scene));
-	Context->Unmap(TO_SCENE_buffer, NULL);
-
-
-	Context->IASetInputLayout(iLay);
-	// TODO: PART 3 STEP 6
-	Context->VSSetConstantBuffers(1, 1, &TO_OBJECT_buffer);
-	Context->VSSetConstantBuffers(2, 1, &TO_SCENE_buffer);
-	// TODO: PART 2 STEP 9a
-	unsigned int size = sizeof(Simple_Vert);
-	unsigned int offset = 0;
-	Context->IASetVertexBuffers(0, 1, &verts,&size , &offset);
-	Context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, 0);
-	// TODO: PART 2 STEP 9b
-	Context->VSSetShader(VS, NULL, NULL);
-	Context->PSSetShader(PS, NULL, NULL);
-	Context->OMSetDepthStencilState(DSS, 1);
-	Context->PSSetShaderResources(0, 1, &skybox);
-	// TODO: PART 2 STEP 9c
-	
-	// TODO: PART 2 STEP 9d
-	Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	// TODO: PART 2 STEP 10
-	//Context->Draw(3, 0);
-	Context->DrawIndexed(36, 0, 0);
-
-
-	// END PART 2
-	Context->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH, 1.0, NULL);
-
-	Context->IASetVertexBuffers(0, 1, &buff2, &size, &offset);
-
-	Context->Map(TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
-	memcpy(data.pData, &scene, sizeof(scene));
-	Context->Unmap(TO_SCENE_buffer, NULL);
-
-
-
-	Context->PSSetShader(PS2, NULL, NULL);
-	Context->DrawIndexed(6, 0, 0);
-
-
-
 	// TODO: PART 1 STEP 8
 	SwapChain->Present(NULL, NULL);
 	// END OF PART 1
@@ -737,7 +969,12 @@ bool DEMO_APP::ShutDown()
 	DSS->Release();
 	skybox->Release();
 	PS2->Release();
-	
+	defCon->Release();
+	Dlight->Release();
+	Plight->Release();
+	Slight->Release();
+	texture->Release();
+	VS2->Release();
 	UnregisterClass( L"DirectXApplication", application ); 
 	return true;
 }
@@ -775,6 +1012,80 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
     {
         case ( WM_DESTROY ): { PostQuitMessage( 0 ); }
         break;
+		case(WM_SIZE) :
+		{
+			if (SwapChain)
+			{
+				Context->OMSetRenderTargets(0, 0, 0);
+				Context->ClearState();
+				bBuffer->Release();
+				unsigned int width = LOWORD(lParam);
+				unsigned int height = HIWORD(lParam);
+				SwapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, NULL);
+
+				DXGI_SWAP_CHAIN_DESC newDesc;
+				ZeroMemory(&newDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
+				newDesc.SampleDesc.Count = 4;
+
+				SwapChain->GetDesc(&newDesc);
+				ID3D11Texture2D * text;
+
+				SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&text));
+				Device->CreateRenderTargetView(text, NULL, &bBuffer);
+				text->Release();
+
+				ID3D11Texture2D * dtext;
+				DSV->Release();
+
+				D3D11_TEXTURE2D_DESC DepthDesc;
+				ZeroMemory(&DepthDesc, sizeof(D3D11_TEXTURE2D_DESC));
+
+
+				DepthDesc.Width = width;
+				DepthDesc.Height = height;
+
+				DepthDesc.MipLevels = 1;
+				DepthDesc.ArraySize = 1;
+
+				DepthDesc.Format = DXGI_FORMAT_D32_FLOAT;
+				DepthDesc.SampleDesc.Count = 4;
+				DepthDesc.SampleDesc.Quality = 0;
+
+				DepthDesc.Usage = D3D11_USAGE_DEFAULT;
+				DepthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+				Device->CreateTexture2D(&DepthDesc, NULL, &dtext);
+
+				D3D11_DEPTH_STENCIL_VIEW_DESC DSVdesc;
+				ZeroMemory(&DSVdesc, sizeof(D3D11_DEPTH_STENCIL_VIEW_DESC));
+				DSVdesc.Format = DXGI_FORMAT_D32_FLOAT;
+				DSVdesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+				DSVdesc.Texture2D.MipSlice = 0;
+
+				Device->CreateDepthStencilView(dtext, &DSVdesc, &DSV);
+
+				dtext->Release();
+
+				Context->OMSetRenderTargets(1, &bBuffer, NULL);
+
+				ViewPort.Height = height;
+				ViewPort.Width = width;
+				ViewPort.MinDepth = 0;
+				ViewPort.MaxDepth = 1;
+				ViewPort.TopLeftX = 0;
+				ViewPort.TopLeftY = 0;
+
+				Context->RSSetViewports(1, &ViewPort);
+
+				VP.Height = height/4;
+				VP.Width = width/4;
+				VP.MinDepth = 0;
+				VP.MaxDepth = 1;
+				VP.TopLeftX = 0;
+				VP.TopLeftY = 0;
+
+				Context->RSSetViewports(1, &VP);
+			}
+		}
     }
     return DefWindowProc( hWnd, message, wParam, lParam );
 }
