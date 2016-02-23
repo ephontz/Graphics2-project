@@ -42,7 +42,7 @@ float4 main(INPUT stuff) : SV_TARGET
 	//spot light
 	float3 lightdir2 = normalize(pos2.xyz - stuff.pos.xyz);
 	float rat2 = saturate(dot(-lightdir2, dir2.xyz));
-	float spotF = (rat2 > .9) ? 1 : 0;
+	float spotF = (rat2 > .4) ? 1 : 0;
 	float lightrat = saturate(dot(-lightdir2, stuff.norm));
 	float4 result2 = spotF*lightrat*color2*temp;
 		return result+ result1+ result2;

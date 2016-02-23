@@ -211,7 +211,14 @@ void ThreadDraw(DEMO_APP * app)
 	app->defCon->RSSetState(app->RState);
 
 	app->direct.z += app->move;
-	app->spot.pos[0] += app->move;
+	app->spot.pos[0] = app->scene.View.mat[3][0];
+	app->spot.pos[1] = app->scene.View.mat[3][1];
+	app->spot.pos[2] = app->scene.View.mat[3][2];
+
+	app->spot.x = app->scene.View.mat[2][0];
+	app->spot.y = app->scene.View.mat[2][1];
+	app->spot.z = app->scene.View.mat[2][2];
+
 	app->pointl.pos[0] -= app->move;
 	app->check += app->move;
 	if (app->check >= 1000 || app->check <= -1000)
@@ -595,7 +602,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	direct.a = 1;
 	direct.r = 0;
 	direct.g = 0;
-	direct.b = .25;
+	direct.b = 1;
 
 	pointl.x = -.2;
 	pointl.y = -.2;
@@ -604,7 +611,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	pointl.a = 0;
 	pointl.r = 1;
 	pointl.g = 0;
-	pointl.b = .25;
+	pointl.b = 1;
 
 	pointl.pos[0] = .2;
 	pointl.pos[1] = .2;
@@ -613,10 +620,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	
 
-	spot.a = 0;
-	spot.r = 0;
+	spot.a = 1;
+	spot.r = 1;
 	spot.g = 1;
-	spot.b = .25;
+	spot.b = 1;
 
 	spot.pos[0] = -.2;
 	spot.pos[1] = -.2;
