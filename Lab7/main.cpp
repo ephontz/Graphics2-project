@@ -48,6 +48,15 @@ ID3D11RenderTargetView *bBuffer;
 ID3D11DepthStencilView * DSV;
 D3D11_VIEWPORT ViewPort;
 D3D11_VIEWPORT VP;
+
+struct TO_SCENE
+{
+	Mat View = Ident();
+	Mat Proj = Ident();
+};
+
+
+TO_SCENE scene;
 //************************************************************
 //************ SIMPLE WINDOWS APP CLASS **********************
 //************************************************************
@@ -138,15 +147,11 @@ public:
 		Mat world = Ident();
 	};
 
-	struct TO_SCENE
-	{
-		Mat View = Ident();
-		Mat Proj = Ident();
-	};
+
 
 	TO_OBJECT world;
 
-	TO_SCENE scene;
+
 
 	Mat cameraTransform = Ident();
 public:
@@ -211,13 +216,13 @@ void ThreadDraw(DEMO_APP * app)
 	app->defCon->RSSetState(app->RState);
 
 	app->direct.z += app->move;
-	app->spot.pos[0] = app->scene.View.mat[3][0];
-	app->spot.pos[1] = app->scene.View.mat[3][1];
-	app->spot.pos[2] = app->scene.View.mat[3][2];
+	app->spot.pos[0] = scene.View.mat[3][0];
+	app->spot.pos[1] = scene.View.mat[3][1];
+	app->spot.pos[2] = scene.View.mat[3][2];
 
-	app->spot.x = app->scene.View.mat[2][0];
-	app->spot.y = app->scene.View.mat[2][1];
-	app->spot.z = app->scene.View.mat[2][2];
+	app->spot.x = scene.View.mat[2][0];
+	app->spot.y = scene.View.mat[2][1];
+	app->spot.z = scene.View.mat[2][2];
 
 	app->pointl.pos[0] -= app->move;
 	app->check += app->move;
@@ -235,9 +240,9 @@ void ThreadDraw(DEMO_APP * app)
 	app->defCon->ClearDepthStencilView(DSV, NULL, 1, NULL);
 
 
-	DEMO_APP::TO_SCENE temp;
-	temp.Proj = app->scene.Proj;
-	temp.View = app->scene.View;
+	TO_SCENE temp;
+	temp.Proj = scene.Proj;
+	temp.View = scene.View;
 
 	temp.View.mat[3][0] = 0;
 	temp.View.mat[3][1] = 0;
@@ -257,7 +262,7 @@ void ThreadDraw(DEMO_APP * app)
 	app->defCon->Unmap(app->TO_OBJECT_buffer, NULL);
 
 	app->defCon->Map(app->TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
-	memcpy(data.pData, &temp, sizeof(app->scene));
+	memcpy(data.pData, &temp, sizeof(scene));
 	app->defCon->Unmap(app->TO_SCENE_buffer, NULL);
 
 	app->defCon->Map(app->Dlight, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &lightData);
@@ -302,7 +307,7 @@ void ThreadDraw(DEMO_APP * app)
 	app->defCon->IASetVertexBuffers(0, 1, &app->buff2, &size, &offset);
 
 	app->defCon->Map(app->TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
-	memcpy(data.pData, &app->scene, sizeof(app->scene));
+	memcpy(data.pData, &scene, sizeof(scene));
 	app->defCon->Unmap(app->TO_SCENE_buffer, NULL);
 
 
@@ -331,8 +336,8 @@ void ThreadDraw(DEMO_APP * app)
 
 
 	
-	temp.Proj = app->scene.Proj;
-	temp.View = app->scene.View;
+	temp.Proj = scene.Proj;
+	temp.View = scene.View;
 
 	temp.View.mat[3][0] = 0;
 	temp.View.mat[3][1] = 0;
@@ -346,7 +351,7 @@ void ThreadDraw(DEMO_APP * app)
 	app->defCon->Unmap(app->TO_OBJECT_buffer, NULL);
 
 	app->defCon->Map(app->TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
-	memcpy(data.pData, &temp, sizeof(app->scene));
+	memcpy(data.pData, &temp, sizeof(scene));
 	app->defCon->Unmap(app->TO_SCENE_buffer, NULL);
 
 	
@@ -375,7 +380,7 @@ void ThreadDraw(DEMO_APP * app)
 	app->defCon->IASetVertexBuffers(0, 1, &app->buff2, &size, &offset);
 
 	app->defCon->Map(app->TO_SCENE_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &data);
-	memcpy(data.pData, &app->scene, sizeof(app->scene));
+	memcpy(data.pData, &scene, sizeof(scene));
 	app->defCon->Unmap(app->TO_SCENE_buffer, NULL);
 
 
@@ -1127,6 +1132,15 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 				VP.TopLeftY = 0;
 
 				Context->RSSetViewports(1, &VP);
+
+				float zFar = 10.0;
+				float zNear = .1;
+				scene.Proj.mat[1][1] = 1 / tan(Degree_to_rad(50));
+				scene.Proj.mat[0][0] = scene.Proj.mat[1][1] * (LOWORD(lParam) / HIWORD(lParam));
+				scene.Proj.mat[2][2] = (zFar - zNear) / zFar;
+				scene.Proj.mat[2][3] = 1;
+				scene.Proj.mat[3][3] = 0;
+				scene.Proj.mat[3][2] = -(zFar * zNear) / (zFar - zNear);
 			}
 		}
     }
