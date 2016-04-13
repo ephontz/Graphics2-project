@@ -217,7 +217,7 @@ void ThreadDraw(DEMO_APP * app)
 
 	app->direct.x += app->move;
 	app->spot.pos[2] += (app->move/100.0f);
-
+	app->spot.pos[1] -= (app->move / 100.0f);
 	app->pointl.pos[2] -= (app->move);
 	app->check += app->move;
 	if (app->check >= 1000 || app->check <= -1000)
