@@ -215,16 +215,10 @@ void ThreadDraw(DEMO_APP * app)
 	app->defCon->RSSetViewports(1, &ViewPort);
 	app->defCon->RSSetState(app->RState);
 
-	app->direct.z += app->move;
-	app->spot.pos[0] = scene.View.mat[3][0];
-	app->spot.pos[1] = scene.View.mat[3][1];
-	app->spot.pos[2] = scene.View.mat[3][2];
+	app->direct.x += app->move;
+	app->spot.pos[2] += (app->move/100.0f);
 
-	app->spot.x = scene.View.mat[2][0];
-	app->spot.y = scene.View.mat[2][1];
-	app->spot.z = scene.View.mat[2][2];
-
-	app->pointl.pos[0] -= app->move;
+	app->pointl.pos[2] -= (app->move);
 	app->check += app->move;
 	if (app->check >= 1000 || app->check <= -1000)
 	{
@@ -609,9 +603,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	direct.g = 0;
 	direct.b = 1;
 
-	pointl.x = -.2;
-	pointl.y = -.2;
-	pointl.z = 0;
+
 
 	pointl.a = 0;
 	pointl.r = 1;
@@ -623,21 +615,24 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	pointl.pos[2] = 0;
 	pointl.pos[3] = 0;
 
-	
 
+	spot.pos[0] = 0;
+	spot.pos[1] = 1;
+	spot.pos[2] = 0;
+	
+	
+	
 	spot.a = 1;
 	spot.r = 1;
 	spot.g = 1;
 	spot.b = 1;
+	
+	spot.x = 0;
+	spot.y = -1;
+	spot.z = 0;
 
-	spot.pos[0] = -.2;
-	spot.pos[1] = -.2;
-	spot.pos[2] = 0;
-	spot.pos[3] = 0;
 
-	spot.x = -spot.pos[0];
-	spot.y = -spot.pos[1];
-	spot.z = -spot.pos[2];
+
 	// BEGIN PART 4
 	// TODO: PART 4 STEP 1
 
@@ -672,8 +667,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 	thread thing2(ThreadLoader, L"brownRoof_seamless.dds", &texture, this);
-	thing2.join();
-	thing.join();
+
 
 
 	scene.Proj.mat[1][1] = 1 / tan(Degree_to_rad(50));
@@ -809,7 +803,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	Device->CreateBuffer(&buff2Desc, &buff2Data, &buff2);
 	// TODO: PART 3 STEP 4b
 
-
+//Depth Stencile stuff
 
 	
 
@@ -869,8 +863,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 //	Context->OMSetRenderTargets(1, Surface, DSV);
 	DepthStencil->Release();
 
-
-
 	// lighting constant buffer
 #pragma region
 
@@ -908,7 +900,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 
-
+	thing2.join();
+	thing.join();
 
 }
 

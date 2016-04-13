@@ -21,6 +21,7 @@ struct OUTPUT_VERTEX
 	float4 projectedCoordinate : SV_POSITION;
 	float3 norm_o : NORMAL;
 	float2 uv_o : UV;
+	float4 worldPos: POS;
 };
 
 // TODO: PART 3 STEP 2a
@@ -33,13 +34,14 @@ cbuffer THIS_IS_VRAM : register(b0)
 
 OUTPUT_VERTEX main(VERT_IN fromVertexBuffer)
 {
-
+	OUTPUT_VERTEX sendToRasterizer = (OUTPUT_VERTEX)0;
 	float4 temp = float4(fromVertexBuffer.pos.xyz, 1);
 	temp = mul(WorldMatrix, temp);
+	sendToRasterizer.worldPos = temp;
 	temp = mul(viewMatrix, temp);
 	temp = mul(projectionMatrix, temp);
 
-	OUTPUT_VERTEX sendToRasterizer = (OUTPUT_VERTEX)0;
+	
 	
 	sendToRasterizer.projectedCoordinate = temp;
 	sendToRasterizer.norm_o = fromVertexBuffer.norm;
