@@ -667,13 +667,13 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	Device->CreateDepthStencilState(&dssDesc, &DSS);
 	//CreateDDSTextureFromFile(Device, L"skybox.dds", NULL, &skybox);
 	thread thing(ThreadLoader, L"skybox.dds", &skybox, this);
-	thing.join();
+	
 
 
 
 	thread thing2(ThreadLoader, L"brownRoof_seamless.dds", &texture, this);
 	thing2.join();
-
+	thing.join();
 
 
 	scene.Proj.mat[1][1] = 1 / tan(Degree_to_rad(50));
@@ -1067,8 +1067,8 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 				Context->OMSetRenderTargets(0, 0, 0);
 				Context->ClearState();
 				bBuffer->Release();
-				unsigned int width = LOWORD(lParam);
-				unsigned int height = HIWORD(lParam);
+				float width = LOWORD(lParam);
+				float height = HIWORD(lParam);
 				SwapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, NULL);
 
 				DXGI_SWAP_CHAIN_DESC newDesc;
@@ -1136,11 +1136,14 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 				float zFar = 10.0;
 				float zNear = .1;
 				scene.Proj.mat[1][1] = 1 / tan(Degree_to_rad(50));
-				scene.Proj.mat[0][0] = scene.Proj.mat[1][1] * (LOWORD(lParam) / HIWORD(lParam));
+				scene.Proj.mat[0][0] = scene.Proj.mat[1][1] / (width / height);
 				scene.Proj.mat[2][2] = (zFar - zNear) / zFar;
 				scene.Proj.mat[2][3] = 1;
 				scene.Proj.mat[3][3] = 0;
 				scene.Proj.mat[3][2] = -(zFar * zNear) / (zFar - zNear);
+
+				scene.View = InverseDirty(scene.View);
+
 			}
 		}
     }
