@@ -207,6 +207,9 @@ void ThreadLoader(const wchar_t * path, ID3D11ShaderResourceView ** SRV, DEMO_AP
 	CreateDDSTextureFromFile(Device, path, NULL, SRV);
 }
 
+
+
+
 void ThreadDraw(DEMO_APP * app)
 {
 
@@ -468,8 +471,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//cameraTransform.mat[3][2] = -10;
 	//cameraTransform = RotateX(cameraTransform, Degree_to_rad(-10));
 	scene.View = InverseDirty(cameraTransform);
-
-
+//skybox geometry
+#pragma region
 	circle[0].x = cameraTransform.mat[3][0] - .5;
 	circle[0].y = cameraTransform.mat[3][1] + .5;
 	circle[0].z = cameraTransform.mat[3][2] - .5;
@@ -501,7 +504,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	circle[7].x = cameraTransform.mat[3][0] + .5;
 	circle[7].y = cameraTransform.mat[3][1] - .5;
 	circle[7].z = cameraTransform.mat[3][2] + .5;
-
+#pragma endregion 
 
 	gq[0].x = -.5;
 	gq[0].y = 0;
