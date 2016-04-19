@@ -217,10 +217,15 @@ void ThreadDraw(DEMO_APP * app)
 	
 	app->defCon->RSSetViewports(1, &ViewPort);
 	app->defCon->RSSetState(app->RState);
-
+	app->spot.pos[0] = scene.View.mat[3][0];
+	app->spot.pos[1] = scene.View.mat[3][1];
+	app->spot.pos[2] = scene.View.mat[3][2];
+	app->spot.x = scene.View.mat[2][0];
+	app->spot.x = scene.View.mat[2][1];
+	app->spot.x = scene.View.mat[2][2];
 	app->direct.x += app->move;
-	app->spot.pos[2] += (app->move/100.0f);
-	app->spot.pos[1] -= (app->move / 100.0f);
+	//app->spot.pos[2] += (app->move/100.0f);
+	//app->spot.pos[1] -= (app->move / 100.0f);
 	app->pointl.pos[2] -= (app->move);
 	app->check += app->move;
 	if (app->check >= 1000 || app->check <= -1000)
