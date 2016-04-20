@@ -3,13 +3,15 @@ struct VERT_OUT
 		float4 pos_o : SV_POSITION;
 		float3 norm_o : NORMAL;
 		float2 uv_o : UV;
+		float4 worldPos: POS;
 };
 
 struct VERT_IN
 {
-	float4 pos : POSITION;
+	float4 pos : SV_POSITION;
 	float3 norm : NORMAL;
 	float2 uv : UV;
+	float4 worldPos: POS;
 };
 
 cbuffer OBJECT : register(b1)

@@ -34,11 +34,11 @@ float4 main(INPUT stuff) : SV_TARGET
 {
 	float4 temp = text.Sample(samp, stuff.uv);
 	//direction light
-	float rat = saturate(dot(dir0.xyz, stuff.norm));
+	float rat = saturate(dot(-normalize(dir0.xyz), stuff.norm));
 	float4 result = rat*color0*temp;
 	//point light
-	float3 lightdir = normalize(pos1.xyz - stuff.pos.xyz);
-	float rat1 = saturate(dot(-lightdir, stuff.norm));
+	float3 lightdir = normalize(pos1.xyz - stuff.worldPos.xyz);
+	float rat1 = saturate(dot(lightdir, stuff.norm));
 	float4 result1 = rat1*color1*temp;
 	//spot light
 	float3 lightdir2 = normalize(pos2.xyz - stuff.worldPos.xyz);
@@ -46,5 +46,7 @@ float4 main(INPUT stuff) : SV_TARGET
 	float spotF = (rat2 > .95) ? 1 : 0;
 	float lightrat = saturate(dot(lightdir2, stuff.norm));
 	float4 result2 = spotF*lightrat*color2*temp;
-	return result + result1 + result2;
+		float4 total = result + result1 + result2;
+
+		return saturate(total);
 	}

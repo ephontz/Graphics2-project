@@ -39,6 +39,7 @@ using namespace std;
 #include "VertexShader.csh"
 #include "VertexShader1.csh"
 #include "GeometryShader.csh"
+#include <DirectXMath.h>
 #define BACKBUFFER_WIDTH	1024
 #define BACKBUFFER_HEIGHT	768
 IDXGISwapChain * SwapChain;
@@ -217,16 +218,21 @@ void ThreadDraw(DEMO_APP * app)
 	
 	app->defCon->RSSetViewports(1, &ViewPort);
 	app->defCon->RSSetState(app->RState);
-	app->spot.pos[0] = scene.View.mat[3][0];
-	app->spot.pos[1] = scene.View.mat[3][1];
-	app->spot.pos[2] = scene.View.mat[3][2];
-	app->spot.x = scene.View.mat[2][0];
-	app->spot.x = scene.View.mat[2][1];
-	app->spot.x = scene.View.mat[2][2];
-	app->direct.x += app->move;
+	
+	Mat camera = InverseDirty(scene.View);
+	
+	
+	app->spot.pos[0] = camera.mat[3][0];
+	app->spot.pos[1] = camera.mat[3][1];
+	app->spot.pos[2] = camera.mat[3][2];
+	
+	app->spot.x = camera.mat[2][0];
+	app->spot.y = camera.mat[2][1];
+	app->spot.z = camera.mat[2][2];
+	app->direct.x += app->move/500 * (2/3.14159);
 	//app->spot.pos[2] += (app->move/100.0f);
 	//app->spot.pos[1] -= (app->move / 100.0f);
-	app->pointl.pos[2] -= (app->move);
+	app->pointl.pos[0] += (app->move)/500;
 	app->check += app->move;
 	if (app->check >= 1000 || app->check <= -1000)
 	{
@@ -319,7 +325,7 @@ void ThreadDraw(DEMO_APP * app)
 	app->defCon->VSSetShader(app->VS2, NULL, NULL);
 	app->defCon->DrawIndexed(6,0,0);
 	app->defCon->IASetInputLayout(app->iLay2);
-	app->defCon->VSSetShader(app->VS3, NULL, NULL);
+	app->defCon->VSSetShader(app->VS2, NULL, NULL);
 	app->defCon->GSSetShader(app->GS, NULL, NULL);
 	app->defCon->IASetVertexBuffers(0, 1, &app->p2q, &size, &offset);
 	app->defCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
@@ -340,11 +346,7 @@ void ThreadDraw(DEMO_APP * app)
 	
 	temp.Proj = scene.Proj;
 	temp.View = scene.View;
-
-	temp.View.mat[3][0] = 0;
-	temp.View.mat[3][1] = 0;
-	temp.View.mat[3][2] = 0;
-	temp.View = RotateY(temp.View, Degree_to_rad(180));
+	RotateX(scene.View, Deg2Rad(180));
 	ZeroMemory(&data, sizeof(D3D11_MAPPED_SUBRESOURCE));
 
 
@@ -367,8 +369,8 @@ void ThreadDraw(DEMO_APP * app)
 	app->defCon->IASetVertexBuffers(0, 1, &app->verts, &size, &offset);
 	app->defCon->IASetIndexBuffer(app->indexBuffer, DXGI_FORMAT_R16_UINT, 0);
 
-	app->defCon->VSSetShader(app->VS, NULL, NULL);
-	app->defCon->PSSetShader(app->PS, NULL, NULL);
+	app->defCon->VSSetShader(app->VS2, NULL, NULL);
+	app->defCon->PSSetShader(app->PS2, NULL, NULL);
 	app->defCon->OMSetDepthStencilState(app->DSS, 1);
 	app->defCon->PSSetShaderResources(0, 1, &app->skybox);
 
@@ -512,19 +514,19 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 #pragma endregion 
 
 	gq[0].x = -.5;
-	gq[0].y = 0;
+	gq[0].y = -.1;
 	gq[0].z = .5;
 
 	gq[1].x = .5;
-	gq[1].y = 0;
+	gq[1].y = -.1;
 	gq[1].z = .5;
 
 	gq[2].x = -.5;
-	gq[2].y = 0;
+	gq[2].y = -.1;
 	gq[2].z = -.5;
 
 	gq[3].x = .5;
-	gq[3].y = 0;
+	gq[3].y = -.1;
 	gq[3].z = -.5;
 
 	for (size_t i = 0; i < 4; i++)
@@ -603,7 +605,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	index_array[35] = 4;
 	
 	direct.x = .5;
-	direct.y = .5;
+	direct.y = -.5;
 	direct.z = 0;
 
 	direct.a = 1;
@@ -613,13 +615,13 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 
-	pointl.a = 0;
+	pointl.a = 1;
 	pointl.r = 1;
-	pointl.g = 0;
+	pointl.g = 1;
 	pointl.b = 1;
 
-	pointl.pos[0] = .2;
-	pointl.pos[1] = .2;
+	pointl.pos[0] = .05;
+	pointl.pos[1] = .05;
 	pointl.pos[2] = 0;
 	pointl.pos[3] = 0;
 
